@@ -19,6 +19,7 @@ class SchedulerService:
         if len(photos) > 0:
             printer = self.cups_service.get_printer("DI-RS1")
 
+            StdOutService.print("found " + str(len(photos)) + " photos")
             for photo in photos:
                 StdOutService.print("============================================================")
                 StdOutService.print("found file: " + photo.full_path)
