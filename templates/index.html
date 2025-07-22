@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Steuerung & Log</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        pre {
+            background: #222;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+<h1>Main.py Status: {{ status }}</h1>
+<form action="/start" method="get" style="display:inline;">
+    <button type="submit">Start</button>
+</form>
+<form action="/stop" method="get" style="display:inline;">
+    <button type="submit">Stop</button>
+</form>
+
+<h2>Live-Log</h2>
+<pre id="log">Lade Log...</pre>
+
+<script>
+    function updateLog() {
+        fetch('/log')
+            .then(response => response.json())
+            .then(data => {
+                const logElement = document.getElementById("log");
+                logElement.textContent = data.log;
+                logElement.scrollTop = logElement.scrollHeight;
+            });
+    }
+
+    updateLog();
+    setInterval(updateLog, 5000);
+</script>
+</body>
+</html>

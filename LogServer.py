@@ -1,0 +1,44 @@
+import os
+import sys
+
+from flask import Flask, render_template, redirect, url_for, jsonify
+import subprocess
+
+app = Flask(__name__)
+process = None
+
+@app.route("/")
+def index():
+    status = "läuft" if process and process.poll() is None else "gestoppt"
+    return render_template("index.html", status=status)
+
+@app.route("/start")
+def start():
+    global process
+    if not process or process.poll() is not None:
+        process = subprocess.Popen(["python3", "Main.py", sys.argv[1], sys.argv[2], sys.argv[3]])
+    return redirect(url_for("index"))
+
+@app.route("/stop")
+def stop():
+    global process
+    if process and process.poll() is None:
+        process.terminate()
+    return redirect(url_for("index"))
+
+
+@app.route("/log")
+def get_log():
+    if os.path.exists("log.txt"):
+        with open("log.txt", "r") as f:
+            return jsonify(log=f.read())
+    return jsonify(log="(Keine Log-Datei gefunden)")
+
+
+if __name__ == "__main__":
+    if os.path.exists("log.txt"):
+        os.remove("log.txt")
+    with open("log.txt", "w") as f:
+        f.write("")
+        
+    app.run(host="0.0.0.0", port=5000)

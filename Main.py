@@ -1,13 +1,16 @@
+import sys
 import time
+
 import schedule
 
 from Services.SchedulerService import SchedulerService
 
-scheduler_service = SchedulerService()
-schedule.every(1).minutes.do(scheduler_service.run)
+if __name__ == "__main__":
+    scheduler_service = SchedulerService()
+    schedule.every(1).minutes.do(scheduler_service.run)
 
-scheduler_service.run_once()
+    scheduler_service.run_once()
 
-while True:
-    schedule.run_pending()
-    time.sleep(1)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
