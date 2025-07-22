@@ -24,6 +24,8 @@ class SchedulerService:
                 print("download")
                 local_path = self.next_cloud_service.download_photo(photo.user_path)
                 if self.next_cloud_service.is_image(local_path):
+                    print("rotate image")
+                    self.next_cloud_service.rotate_image(local_path)
                     print("crop image")
                     self.next_cloud_service.crop_image(local_path)
                     print("send file to printer: " + local_path)

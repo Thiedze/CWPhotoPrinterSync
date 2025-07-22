@@ -12,6 +12,21 @@ class NextCloudService:
                                             nc_auth_pass=password)
         self.in_progress_folder_path = "in_progress"
 
+    def get_photos(self):
+        return self.next_cloud_service.files.listdir("/Photos/Input")
+
+    def download_photo(self, path):
+        with open(os.path.join(self.in_progress_folder_path, os.path.basename(path)), 'wb') as file:
+            file.write(self.next_cloud_service.files.download(path))
+        return os.path.join(self.in_progress_folder_path, os.path.basename(path))
+
+    def move_photo(self, user_path):
+        filename = os.path.basename(user_path)
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        destination_path = os.path.join("/Photos/Done", timestamp + "_" + filename)
+
+        self.next_cloud_service.files.move(user_path, destination_path)
+
     @staticmethod
     def is_image(file_path):
         try:
@@ -21,7 +36,8 @@ class NextCloudService:
         except Exception:
             return False
 
-    def crop_image(self, file_path):
+    @staticmethod
+    def crop_image(file_path):
         with Image.open(file_path) as image:
             target_cm = (10, 15)
             dpi = 300
@@ -46,17 +62,11 @@ class NextCloudService:
 
             resized.save(file_path, dpi=(dpi, dpi))
 
-    def get_photos(self):
-        return self.next_cloud_service.files.listdir("/Photos/Input")
+    @staticmethod
+    def rotate_image(file_path):
+        with Image.open(file_path) as image:
+            width, height = image.size
+            if width > height:
+                image = image.rotate(270, expand=True)
+            image.save(file_path)
 
-    def download_photo(self, path):
-        with open(os.path.join(self.in_progress_folder_path, os.path.basename(path)), 'wb') as file:
-            file.write(self.next_cloud_service.files.download(path))
-        return os.path.join(self.in_progress_folder_path, os.path.basename(path))
-
-    def move_photo(self, user_path):
-        filename = os.path.basename(user_path)
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        destination_path = os.path.join("/Photos/Done", timestamp + "_" + filename)
-
-        self.next_cloud_service.files.move(user_path, destination_path)
