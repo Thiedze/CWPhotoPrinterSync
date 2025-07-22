@@ -8,7 +8,7 @@ from Services.NextCloudService import NextCloudService
 class SchedulerService:
 
     def __init__(self):
-        self.next_cloud_service = NextCloudService(sys.argv[1], sys.argv[2])
+        self.next_cloud_service = NextCloudService(sys.argv[1], sys.argv[2], sys.argv[3])
         self.cups_service = CupsService()
 
     def run(self):

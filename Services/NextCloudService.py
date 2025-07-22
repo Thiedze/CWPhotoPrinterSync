@@ -7,9 +7,8 @@ from nc_py_api import Nextcloud
 
 class NextCloudService:
 
-    def __init__(self, username, password):
-        self.next_cloud_service = Nextcloud(nextcloud_url="http://nx.lnienhaus.de", nc_auth_user=username,
-                                            nc_auth_pass=password)
+    def __init__(self, url, username, password):
+        self.next_cloud_service = Nextcloud(nextcloud_url=url, nc_auth_user=username, nc_auth_pass=password)
         self.in_progress_folder_path = "in_progress"
 
     def get_photos(self):
