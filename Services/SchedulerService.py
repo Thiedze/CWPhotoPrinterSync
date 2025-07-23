@@ -11,6 +11,7 @@ class SchedulerService:
     def __init__(self):
         self.next_cloud_service = NextCloudService(sys.argv[1], sys.argv[2], sys.argv[3])
         self.cups_service = CupsService()
+        self.counter = 0
 
     def run(self):
         StdOutService.print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -39,9 +40,11 @@ class SchedulerService:
                 StdOutService.print("move to done folder")
                 self.next_cloud_service.move_photo(photo.user_path)
                 StdOutService.print("============================================================\n")
+            self.counter += len(photos)
         else:
             StdOutService.print("no new photos to print")
 
+        StdOutService.print("photos printed since last restart:" + str(self.counter))
         StdOutService.print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n")
 
     def run_once(self):

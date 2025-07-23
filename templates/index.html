@@ -26,8 +26,10 @@
     </style>
 </head>
 <body>
-<h1>Main.py Status: {{ status }}</h1>
+<h1>Server Status: {{ status }}</h1>
 <form action="/start" method="get" style="display:inline;">
+    <label for="interval">Scan-Interval (Sekunden):</label>
+    <input value="60" type="number" id="interval" name="interval" required>
     <button type="submit">Start</button>
 </form>
 <form action="/stop" method="get" style="display:inline;">

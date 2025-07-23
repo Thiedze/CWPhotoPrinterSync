@@ -7,7 +7,7 @@ from Services.SchedulerService import SchedulerService
 
 if __name__ == "__main__":
     scheduler_service = SchedulerService()
-    schedule.every(1).minutes.do(scheduler_service.run)
+    schedule.every(int(sys.argv[4])).seconds.do(scheduler_service.run)
 
     scheduler_service.run_once()
 

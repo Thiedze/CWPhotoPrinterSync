@@ -1,7 +1,7 @@
 import os
 import sys
 
-from flask import Flask, render_template, redirect, url_for, jsonify
+from flask import Flask, render_template, redirect, url_for, jsonify, request
 import subprocess
 
 app = Flask(__name__)
@@ -15,8 +15,11 @@ def index():
 @app.route("/start")
 def start():
     global process
+    interval = request.args.get("interval", type=int)
+    print("interval:", interval)
+
     if not process or process.poll() is not None:
-        process = subprocess.Popen(["python3", "Main.py", sys.argv[1], sys.argv[2], sys.argv[3]])
+        process = subprocess.Popen(["python3", "Main.py", sys.argv[1], sys.argv[2], sys.argv[3], str(interval)])
     return redirect(url_for("index"))
 
 @app.route("/stop")
