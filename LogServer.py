@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 
 from flask import Flask, render_template, redirect, url_for, jsonify, request
 import subprocess
@@ -9,7 +10,103 @@ from Services.WiFiService import WiFiService
 
 app = Flask(__name__)
 process = None
-next_cloud_service = NextCloudService(sys.argv[1], sys.argv[2], sys.argv[3])
+
+# Funktionen zum Lesen und Schreiben der startup.sh
+def load_config_from_startup():
+    try:
+        with open('startup.sh', 'r') as f:
+            content = f.read()
+        
+        # Regex um die Parameter aus der startup.sh zu extrahieren
+        # Sucht nach: python3 LogServer.py <URL> <USERNAME> <PASSWORD>
+        pattern = r'python3\s+LogServer\.py\s+(\S+)\s+(\S+)\s+(\S+)'
+        match = re.search(pattern, content)
+        
+        if match:
+            return {
+                "nextcloud": {
+                    "url": match.group(1),
+                    "username": match.group(2), 
+                    "password": match.group(3)
+                }
+            }
+        else:
+            # Fallback für startup.sh ohne Parameter
+            return {
+                "nextcloud": {
+                    "url": "",
+                    "username": "",
+                    "password": ""
+                }
+            }
+    except FileNotFoundError:
+        # Fallback auf Kommandozeilenargumente falls startup.sh nicht existiert
+        if len(sys.argv) >= 4:
+            return {
+                "nextcloud": {
+                    "url": sys.argv[1],
+                    "username": sys.argv[2], 
+                    "password": sys.argv[3]
+                }
+            }
+        else:
+            return {
+                "nextcloud": {
+                    "url": "",
+                    "username": "",
+                    "password": ""
+                }
+            }
+
+def save_config_to_startup(config):
+    try:
+        with open('startup.sh', 'r') as f:
+            content = f.read()
+        
+        nextcloud_config = config.get("nextcloud", {})
+        url = nextcloud_config.get("url", "")
+        username = nextcloud_config.get("username", "")
+        password = nextcloud_config.get("password", "")
+        
+        # Neue Zeile mit Parametern
+        new_line = f"python3 LogServer.py {url} {username} {password}"
+        
+        # Regex um die bestehende LogServer.py Zeile zu finden und zu ersetzen
+        pattern = r'python3\s+LogServer\.py.*'
+        
+        if re.search(pattern, content):
+            # Bestehende Zeile ersetzen
+            new_content = re.sub(pattern, new_line, content)
+        else:
+            # Falls keine LogServer.py Zeile gefunden wird, am Ende hinzufügen
+            lines = content.strip().split('\n')
+            # Entferne leere Zeile am Ende falls vorhanden
+            while lines and lines[-1].strip() == '':
+                lines.pop()
+            lines.append(new_line)
+            new_content = '\n'.join(lines) + '\n'
+        
+        with open('startup.sh', 'w') as f:
+            f.write(new_content)
+            
+        return True
+    except Exception as e:
+        print(f"Fehler beim Schreiben der startup.sh: {e}")
+        return False
+
+# Konfiguration aus startup.sh laden und NextCloud Service initialisieren
+config = load_config_from_startup()
+nextcloud_config = config.get("nextcloud", {})
+
+if nextcloud_config.get("url") and nextcloud_config.get("username"):
+    next_cloud_service = NextCloudService(
+        nextcloud_config["url"], 
+        nextcloud_config["username"], 
+        nextcloud_config["password"]
+    )
+else:
+    next_cloud_service = None
+
 wifi_service = WiFiService()
 @app.route("/")
 def index():
@@ -23,7 +120,15 @@ def start():
     print("interval:", interval)
 
     if not process or process.poll() is not None:
-        process = subprocess.Popen(["python3", "Main.py", sys.argv[1], sys.argv[2], sys.argv[3], str(interval)])
+        config = load_config_from_startup()
+        nextcloud_config = config.get("nextcloud", {})
+        process = subprocess.Popen([
+            "python3", "Main.py", 
+            nextcloud_config.get("url", ""), 
+            nextcloud_config.get("username", ""), 
+            nextcloud_config.get("password", ""), 
+            str(interval)
+        ])
     return redirect(url_for("index"))
 
 @app.route("/stop")
@@ -35,8 +140,10 @@ def stop():
 
 @app.route("/next_cloud_clear")
 def next_cloud_clear():
-    photos = next_cloud_service.get_photos()
-    next_cloud_service.reset_in_progress(photos)
+    global next_cloud_service
+    if next_cloud_service:
+        photos = next_cloud_service.get_photos()
+        next_cloud_service.reset_in_progress(photos)
     return redirect(url_for("index"))
 
 @app.route("/log")
@@ -48,7 +155,6 @@ def get_log():
 
 @app.route("/wifi/scan")
 def wifi_scan():
-    """Scannt verfügbare WiFi-Netzwerke"""
     networks = wifi_service.get_available_networks()
     current_network = wifi_service.get_current_network()
     return jsonify(networks=networks, current=current_network)
@@ -105,6 +211,53 @@ def files_clear():
         return jsonify(success=True, deleted_count=deleted_count, message=f"{deleted_count} Dateien wurden gelöscht")
     except Exception as e:
         return jsonify(success=False, message=f"Fehler beim Löschen: {str(e)}")
+
+@app.route("/nextcloud/config")
+def nextcloud_get_config():
+    config = load_config_from_startup()
+    nextcloud_config = config.get("nextcloud", {})
+    return jsonify({
+        "url": nextcloud_config.get("url", ""),
+        "username": nextcloud_config.get("username", ""),
+        "configured": bool(nextcloud_config.get("url") and nextcloud_config.get("username"))
+    })
+
+@app.route("/nextcloud/config", methods=["POST"])
+def nextcloud_set_config():
+    global next_cloud_service
+    
+    try:
+        data = request.get_json()
+        
+        if not data or 'url' not in data or 'username' not in data:
+            return jsonify(success=False, message="URL und Benutzername sind erforderlich"), 400
+        
+        # Konfiguration erstellen
+        config = {
+            "nextcloud": {
+                "url": data["url"],
+                "username": data["username"],
+                "password": data.get("password", "")
+            }
+        }
+        
+        # Konfiguration in startup.sh speichern
+        if not save_config_to_startup(config):
+            return jsonify(success=False, message="Fehler beim Schreiben der startup.sh")
+        
+        # NextCloud Service neu initialisieren
+        if config["nextcloud"]["url"] and config["nextcloud"]["username"]:
+            next_cloud_service = NextCloudService(
+                config["nextcloud"]["url"],
+                config["nextcloud"]["username"], 
+                config["nextcloud"]["password"]
+            )
+        else:
+            next_cloud_service = None
+        
+        return jsonify(success=True, message="NextCloud-Konfiguration wurde in startup.sh gespeichert")
+    except Exception as e:
+        return jsonify(success=False, message=f"Fehler beim Speichern: {str(e)}")
 
 
 if __name__ == "__main__":

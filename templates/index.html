@@ -123,6 +123,31 @@
             background: currentColor;
         }
 
+        .nextcloud-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+            border-radius: 50px;
+            font-weight: 600;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .nextcloud-status-badge.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .nextcloud-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -438,6 +463,10 @@
                     <div class="files-status-indicator"></div>
                     <span id="filesStatusText">Dateien: Wird geladen...</span>
                 </div>
+                <div id="nextcloudStatusBadge" class="nextcloud-status-badge">
+                    <div class="nextcloud-status-indicator"></div>
+                    <span id="nextcloudStatusText">NextCloud: Wird geladen...</span>
+                </div>
             </div>
         </div>
 
@@ -532,6 +561,51 @@
                     </div>
                     
                     <div id="wifiStatus"></div>
+                </div>
+            </div>
+
+            <!-- NextCloud Configuration Card -->
+            <div class="card collapsed">
+                <h2 class="card-title collapsible collapsed" onclick="toggleCard(this)">NextCloud Konfiguration</h2>
+                <div class="card-content collapsed">
+                    <div class="wifi-form">
+                        <div class="form-group">
+                            <label for="nextcloudUrl">NextCloud URL</label>
+                            <input type="url" id="nextcloudUrl" placeholder="z.B. https://cloud.example.com">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="nextcloudUsername">Benutzername</label>
+                            <input type="text" id="nextcloudUsername" placeholder="NextCloud Benutzername">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="nextcloudPassword">Passwort</label>
+                            <input type="password" id="nextcloudPassword" placeholder="NextCloud Passwort">
+                        </div>
+                        
+                        <div class="wifi-buttons">
+                            <button onclick="saveNextCloudConfig()" class="btn-primary">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                                    <polyline points="17,21 17,13 7,13 7,21"/>
+                                    <polyline points="7,3 7,8 15,8"/>
+                                </svg>
+                                Speichern
+                            </button>
+                            
+                            <button onclick="loadNextCloudConfig()" class="btn-secondary">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <polyline points="1 4 1 10 7 10"/>
+                                    <polyline points="23 20 23 14 17 14"/>
+                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                                </svg>
+                                Laden
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="nextcloudStatus"></div>
                 </div>
             </div>
         </div>
@@ -763,18 +837,103 @@
             });
         }
 
+        function updateNextCloudStatus() {
+            fetch('/nextcloud/config')
+                .then(response => response.json())
+                .then(data => {
+                    const statusBadge = document.getElementById("nextcloudStatusBadge");
+                    const statusText = document.getElementById("nextcloudStatusText");
+                    
+                    if (data.configured) {
+                        statusText.textContent = `NextCloud: ${data.username}`;
+                        statusBadge.className = "nextcloud-status-badge";
+                    } else {
+                        statusText.textContent = "NextCloud: Nicht konfiguriert";
+                        statusBadge.className = "nextcloud-status-badge error";
+                    }
+                })
+                .catch(error => {
+                    document.getElementById("nextcloudStatusText").textContent = "NextCloud: Fehler";
+                    document.getElementById("nextcloudStatusBadge").className = "nextcloud-status-badge error";
+                });
+        }
+
+        function loadNextCloudConfig() {
+            fetch('/nextcloud/config')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("nextcloudUrl").value = data.url || '';
+                    document.getElementById("nextcloudUsername").value = data.username || '';
+                    document.getElementById("nextcloudPassword").value = ''; // Passwort nie laden aus Sicherheitsgründen
+                    
+                    const statusElement = document.getElementById("nextcloudStatus");
+                    if (data.configured) {
+                        statusElement.innerHTML = '<div class="status-message success">Konfiguration geladen</div>';
+                    } else {
+                        statusElement.innerHTML = '<div class="status-message error">Keine Konfiguration vorhanden</div>';
+                    }
+                })
+                .catch(error => {
+                    const statusElement = document.getElementById("nextcloudStatus");
+                    statusElement.innerHTML = '<div class="status-message error">Fehler beim Laden der Konfiguration</div>';
+                });
+        }
+
+        function saveNextCloudConfig() {
+            const url = document.getElementById("nextcloudUrl").value;
+            const username = document.getElementById("nextcloudUsername").value;
+            const password = document.getElementById("nextcloudPassword").value;
+            const statusElement = document.getElementById("nextcloudStatus");
+            
+            if (!url || !username) {
+                statusElement.innerHTML = '<div class="status-message error">URL und Benutzername sind erforderlich</div>';
+                return;
+            }
+            
+            statusElement.innerHTML = '<div class="status-message loading"><div class="loading-spinner"></div> Speichere Konfiguration...</div>';
+            
+            fetch('/nextcloud/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    url: url,
+                    username: username,
+                    password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusElement.innerHTML = `<div class="status-message success">${data.message}</div>`;
+                    // Passwort-Feld leeren
+                    document.getElementById("nextcloudPassword").value = '';
+                    // Status aktualisieren
+                    updateNextCloudStatus();
+                } else {
+                    statusElement.innerHTML = `<div class="status-message error">${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                statusElement.innerHTML = '<div class="status-message error">Fehler beim Speichern der Konfiguration</div>';
+            });
+        }
+
         // Initialisierung beim Laden der Seite
         document.addEventListener('DOMContentLoaded', function() {
             updateLog();
             updateCurrentWifi();
             updateHeaderWifiStatus();
             updateFilesStatus();
+            updateNextCloudStatus();
             scanWifi();
             
             // Regelmäßige Updates
             setInterval(updateLog, 5000);
             setInterval(updateCurrentWifi, 30000); // Alle 30 Sekunden aktuelles WiFi prüfen
             setInterval(updateFilesStatus, 10000); // Alle 10 Sekunden Dateianzahl prüfen
+            setInterval(updateNextCloudStatus, 60000); // Alle 60 Sekunden NextCloud Status prüfen
         });
     </script>
 </body>
