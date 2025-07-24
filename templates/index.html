@@ -111,6 +111,7 @@
             padding: 2rem;
             box-shadow: var(--card-shadow);
             border: 1px solid var(--border-color);
+            transition: var(--transition);
         }
 
         .card-title {
@@ -150,7 +151,14 @@
         }
 
         .card.collapsed {
-            padding-bottom: 1rem;
+            padding: 1rem 2rem;
+            background: transparent;
+            box-shadow: none;
+            border: none;
+        }
+
+        .card.collapsed .card-title {
+            margin-bottom: 0;
         }
 
         .card-title::before {
