@@ -23,10 +23,55 @@
             max-height: 70vh;
             overflow-y: auto;
         }
+
+        .wifi-section {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+        }
+
+        .wifi-form {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        #wifiSelect {
+            min-width: 200px;
+            padding: 8px;
+        }
+
+        #wifiPassword {
+            min-width: 150px;
+            padding: 8px;
+        }
+
+        .current-wifi {
+            color: #0a5d00;
+            font-weight: bold;
+        }
+
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+
+        .error {
+            color: #d00;
+        }
+
+        .success {
+            color: #0a5d00;
+        }
     </style>
 </head>
 <body>
 <h1>Server Status: {{ status }}</h1>
+
+<!-- Bestehende Steuerung -->
 <form action="/start" method="get" style="display:inline;">
     <label for="interval">Scan-Interval (Sekunden):</label>
     <input value="60" type="number" id="interval" name="interval" required>
@@ -38,6 +83,30 @@
 <form action="/next_cloud_clear" method="get" style="display:inline;">
     <button type="submit">Next Cloud Clear</button>
 </form>
+
+<!-- WiFi-Konfiguration -->
+<div class="wifi-section">
+    <h2>WiFi-Konfiguration</h2>
+    <div>
+        <strong>Aktuelles Netzwerk:</strong> 
+        <span id="currentWifi" class="current-wifi loading">Wird geladen...</span>
+    </div>
+    
+    <div class="wifi-form">
+        <label for="wifiSelect">WiFi-Netzwerk:</label>
+        <select id="wifiSelect" onchange="onWifiSelection()">
+            <option value="">Netzwerk wählen...</option>
+        </select>
+        
+        <label for="wifiPassword">Passwort:</label>
+        <input type="password" id="wifiPassword" placeholder="WiFi-Passwort">
+        
+        <button onclick="configureWifi()">WiFi konfigurieren</button>
+        <button onclick="scanWifi()">Neu scannen</button>
+    </div>
+    
+    <div id="wifiStatus"></div>
+</div>
 
 <h2>Live-Log</h2>
 <pre id="log">Lade Log...</pre>
@@ -53,8 +122,131 @@
             });
     }
 
+    function updateCurrentWifi() {
+        fetch('/wifi/current')
+            .then(response => response.json())
+            .then(data => {
+                const currentElement = document.getElementById("currentWifi");
+                if (data.current) {
+                    currentElement.textContent = data.current;
+                    currentElement.className = "current-wifi";
+                } else {
+                    currentElement.textContent = "Nicht verbunden";
+                    currentElement.className = "current-wifi error";
+                }
+            })
+            .catch(error => {
+                document.getElementById("currentWifi").textContent = "Fehler beim Laden";
+                document.getElementById("currentWifi").className = "current-wifi error";
+            });
+    }
+
+    function scanWifi() {
+        const statusElement = document.getElementById("wifiStatus");
+        const selectElement = document.getElementById("wifiSelect");
+        
+        statusElement.innerHTML = '<span class="loading">Scanne WiFi-Netzwerke...</span>';
+        
+        // Select zurücksetzen
+        selectElement.innerHTML = '<option value="">Scanne...</option>';
+        
+        fetch('/wifi/scan')
+            .then(response => response.json())
+            .then(data => {
+                selectElement.innerHTML = '<option value="">Netzwerk wählen...</option>';
+                
+                if (data.networks && data.networks.length > 0) {
+                    data.networks.forEach(network => {
+                        const option = document.createElement('option');
+                        option.value = network.ssid;
+                        option.dataset.encrypted = network.encrypted;
+                        
+                        let displayText = network.ssid;
+                        if (network.quality !== undefined) {
+                            displayText += ` (${network.quality}%)`;
+                        }
+                        if (network.encrypted) {
+                            displayText += ' 🔒';
+                        }
+                        
+                        option.textContent = displayText;
+                        selectElement.appendChild(option);
+                    });
+                    
+                    statusElement.innerHTML = `<span class="success">${data.networks.length} Netzwerke gefunden</span>`;
+                } else {
+                    statusElement.innerHTML = '<span class="error">Keine Netzwerke gefunden</span>';
+                }
+                
+                // Aktuelles Netzwerk aktualisieren
+                updateCurrentWifi();
+            })
+            .catch(error => {
+                statusElement.innerHTML = '<span class="error">Fehler beim Scannen der Netzwerke</span>';
+                selectElement.innerHTML = '<option value="">Fehler beim Scannen</option>';
+            });
+    }
+
+    function configureWifi() {
+        const ssid = document.getElementById("wifiSelect").value;
+        const password = document.getElementById("wifiPassword").value;
+        const statusElement = document.getElementById("wifiStatus");
+        
+        if (!ssid) {
+            statusElement.innerHTML = '<span class="error">Bitte wählen Sie ein Netzwerk aus</span>';
+            return;
+        }
+        
+        statusElement.innerHTML = '<span class="loading">Konfiguriere WiFi...</span>';
+        
+        fetch('/wifi/configure', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ssid: ssid,
+                password: password
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusElement.innerHTML = `<span class="success">${data.message}</span>`;
+                // Passwort-Feld leeren
+                document.getElementById("wifiPassword").value = '';
+                // Nach kurzer Zeit aktuelles Netzwerk neu laden
+                setTimeout(updateCurrentWifi, 3000);
+            } else {
+                statusElement.innerHTML = `<span class="error">${data.message}</span>`;
+            }
+        })
+        .catch(error => {
+            statusElement.innerHTML = '<span class="error">Fehler bei der WiFi-Konfiguration</span>';
+        });
+    }
+
+    function onWifiSelection() {
+        const selectElement = document.getElementById("wifiSelect");
+        const passwordElement = document.getElementById("wifiPassword");
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        
+        if (selectedOption && selectedOption.dataset.encrypted === 'true') {
+            passwordElement.focus();
+            passwordElement.placeholder = "Passwort erforderlich";
+        } else {
+            passwordElement.placeholder = "WiFi-Passwort";
+        }
+    }
+
+    // Initialisierung beim Laden der Seite
     updateLog();
+    updateCurrentWifi();
+    scanWifi();
+    
+    // Regelmäßige Updates
     setInterval(updateLog, 5000);
+    setInterval(updateCurrentWifi, 30000); // Alle 30 Sekunden aktuelles WiFi prüfen
 </script>
 </body>
 </html>

@@ -5,10 +5,12 @@ from flask import Flask, render_template, redirect, url_for, jsonify, request
 import subprocess
 
 from Services.NextCloudService import NextCloudService
+from Services.WiFiService import WiFiService
 
 app = Flask(__name__)
 process = None
 next_cloud_service = NextCloudService(sys.argv[1], sys.argv[2], sys.argv[3])
+wifi_service = WiFiService()
 @app.route("/")
 def index():
     status = "läuft" if process and process.poll() is None else "gestoppt"
@@ -43,6 +45,37 @@ def get_log():
         with open("log.txt", "r") as f:
             return jsonify(log=f.read())
     return jsonify(log="(Keine Log-Datei gefunden)")
+
+@app.route("/wifi/scan")
+def wifi_scan():
+    """Scannt verfügbare WiFi-Netzwerke"""
+    networks = wifi_service.get_available_networks()
+    current_network = wifi_service.get_current_network()
+    return jsonify(networks=networks, current=current_network)
+
+@app.route("/wifi/configure", methods=["POST"])
+def wifi_configure():
+    """Konfiguriert WiFi mit ausgewähltem Netzwerk und Passwort"""
+    data = request.get_json()
+    
+    if not data or 'ssid' not in data:
+        return jsonify(success=False, message="SSID ist erforderlich"), 400
+    
+    ssid = data['ssid']
+    password = data.get('password', '')
+    
+    success = wifi_service.configure_wifi(ssid, password)
+    
+    if success:
+        return jsonify(success=True, message=f"WiFi erfolgreich konfiguriert: {ssid}")
+    else:
+        return jsonify(success=False, message="WiFi-Konfiguration fehlgeschlagen")
+
+@app.route("/wifi/current")
+def wifi_current():
+    """Gibt das aktuell verbundene WiFi-Netzwerk zurück"""
+    current_network = wifi_service.get_current_network()
+    return jsonify(current=current_network)
 
 
 if __name__ == "__main__":
