@@ -69,3 +69,7 @@ class NextCloudService:
                 image = image.rotate(270, expand=True)
             image.save(file_path)
 
+    def reset_in_progress(self, photos):
+        for photo in photos:
+            self.next_cloud_service.files.delete(photo.user_path)
+

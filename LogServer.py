@@ -4,9 +4,11 @@ import sys
 from flask import Flask, render_template, redirect, url_for, jsonify, request
 import subprocess
 
+from Services.NextCloudService import NextCloudService
+
 app = Flask(__name__)
 process = None
-
+next_cloud_service = NextCloudService(sys.argv[1], sys.argv[2], sys.argv[3])
 @app.route("/")
 def index():
     status = "läuft" if process and process.poll() is None else "gestoppt"
@@ -29,6 +31,11 @@ def stop():
         process.terminate()
     return redirect(url_for("index"))
 
+@app.route("/next_cloud_clear")
+def next_cloud_clear():
+    photos = next_cloud_service.get_photos()
+    next_cloud_service.reset_in_progress(photos)
+    return redirect(url_for("index"))
 
 @app.route("/log")
 def get_log():
