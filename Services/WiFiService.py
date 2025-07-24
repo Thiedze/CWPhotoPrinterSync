@@ -15,7 +15,6 @@ class WiFiService:
                 return []
 
             networks = self.parse_scan_results(result.stdout)
-            StdOutService.print(f"Gefundene WiFi-Netzwerke: {len(networks)}")
             return networks
 
         except subprocess.TimeoutExpired:

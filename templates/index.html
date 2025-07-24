@@ -1,252 +1,692 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
-    <title>Steuerung & Log</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Printer Sync - Dashboard</title>
     <style>
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary-color: #f3f4f6;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --border-radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: monospace;
-            background: #f4f4f4;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+            border-radius: 50px;
+            font-weight: 600;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .wifi-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border-radius: 50px;
+            font-weight: 600;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .wifi-status-badge.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .wifi-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .card-title.collapsible::after {
+            content: '▼';
+            margin-left: auto;
+            transition: transform 0.3s ease;
+            font-size: 0.8rem;
+        }
+
+        .card-title.collapsed::after {
+            transform: rotate(-90deg);
+        }
+
+        .card-content {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .card-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin-bottom: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        .card.collapsed {
+            padding-bottom: 1rem;
+        }
+
+        .card-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+
+        .control-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        label {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        input, select {
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: var(--transition);
+            background: white;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
 
         button {
-            margin: 5px;
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 48px;
         }
 
-        pre {
-            background: #222;
-            color: #0f0;
-            padding: 15px;
-            border-radius: 5px;
-            max-height: 70vh;
-            overflow-y: auto;
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
         }
 
-        .wifi-section {
-            background: white;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-            border: 1px solid #ddd;
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--secondary-color);
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+            border-color: var(--text-secondary);
+        }
+
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .wifi-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--secondary-color);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .wifi-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        .wifi-indicator.error {
+            background: var(--error-color);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         .wifi-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            align-items: end;
+            margin-top: 1rem;
+        }
+
+        .wifi-form .form-group:first-child {
+            grid-column: 1 / -1;
+        }
+
+        .wifi-form .form-group:nth-child(2) {
+            grid-column: 1 / -1;
+        }
+
+        .wifi-buttons {
+            grid-column: 1 / -1;
             display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 1rem;
+            flex-wrap: wrap;
         }
 
-        #wifiSelect {
-            min-width: 200px;
-            padding: 8px;
+        .wifi-buttons button {
+            flex: 1;
+            min-width: 140px;
         }
 
-        #wifiPassword {
-            min-width: 150px;
-            padding: 8px;
+        @media (max-width: 768px) {
+            .wifi-buttons {
+                flex-direction: column;
+            }
+            
+            .wifi-buttons button {
+                flex: none;
+            }
+            
+            .control-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
 
-        .current-wifi {
-            color: #0a5d00;
-            font-weight: bold;
+        .log-container {
+            grid-column: 1 / -1;
         }
 
-        .loading {
-            color: #666;
-            font-style: italic;
+        .log-terminal {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            max-height: 60vh;
+            overflow-y: auto;
+            line-height: 1.4;
+            border: 1px solid #333;
         }
 
-        .error {
-            color: #d00;
+        .log-terminal::-webkit-scrollbar {
+            width: 8px;
         }
 
-        .success {
-            color: #0a5d00;
+        .log-terminal::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+
+        .log-terminal::-webkit-scrollbar-thumb {
+            background: #4a4a4a;
+            border-radius: 4px;
+        }
+
+        .log-terminal::-webkit-scrollbar-thumb:hover {
+            background: #5a5a5a;
+        }
+
+        .status-message {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-weight: 500;
+        }
+
+        .status-message.loading {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .status-message.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status-message.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            fill: currentColor;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-<h1>Server Status: {{ status }}</h1>
+    <div class="container">
+        <div class="header">
+            <h1>Photo Printer Sync</h1>
+            <div class="status-row">
+                <div class="status-badge">Status: {{ status }}</div>
+                <div id="wifiStatusBadge" class="wifi-status-badge">
+                    <div class="wifi-status-indicator"></div>
+                    <span id="wifiStatusText">WiFi: Wird geladen...</span>
+                </div>
+            </div>
+        </div>
 
-<!-- Bestehende Steuerung -->
-<form action="/start" method="get" style="display:inline;">
-    <label for="interval">Scan-Interval (Sekunden):</label>
-    <input value="60" type="number" id="interval" name="interval" required>
-    <button type="submit">Start</button>
-</form>
-<form action="/stop" method="get" style="display:inline;">
-    <button type="submit">Stop</button>
-</form>
-<form action="/next_cloud_clear" method="get" style="display:inline;">
-    <button type="submit">Next Cloud Clear</button>
-</form>
+        <div class="grid">
+            <!-- Server Control Card -->
+            <div class="card collapsed">
+                <h2 class="card-title collapsible collapsed" onclick="toggleCard(this)">Server Steuerung</h2>
+                <div class="card-content collapsed">
+                    <div class="control-form">
+                        <form action="/start" method="get" style="display: contents;">
+                            <div class="form-group">
+                                <label for="interval">Scan-Interval (Sekunden)</label>
+                                <input value="60" type="number" id="interval" name="interval" required min="1">
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z"/>
+                                </svg>
+                                Start
+                            </button>
+                        </form>
+                        <form action="/stop" method="get" style="display: contents;">
+                            <button type="submit" class="btn-danger">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <rect x="6" y="6" width="12" height="12"/>
+                                </svg>
+                                Stop
+                            </button>
+                        </form>
+                        <form action="/next_cloud_clear" method="get" style="display: contents;">
+                            <button type="submit" class="btn-secondary">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <path d="M3 6h18l-1.5 12h-15L3 6z"/>
+                                    <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                </svg>
+                                Cloud bereinigen
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
 
-<!-- WiFi-Konfiguration -->
-<div class="wifi-section">
-    <h2>WiFi-Konfiguration</h2>
-    <div>
-        <strong>Aktuelles Netzwerk:</strong> 
-        <span id="currentWifi" class="current-wifi loading">Wird geladen...</span>
-    </div>
-    
-    <div class="wifi-form">
-        <label for="wifiSelect">WiFi-Netzwerk:</label>
-        <select id="wifiSelect" onchange="onWifiSelection()">
-            <option value="">Netzwerk wählen...</option>
-        </select>
-        
-        <label for="wifiPassword">Passwort:</label>
-        <input type="password" id="wifiPassword" placeholder="WiFi-Passwort">
-        
-        <button onclick="configureWifi()">WiFi konfigurieren</button>
-        <button onclick="scanWifi()">Neu scannen</button>
-    </div>
-    
-    <div id="wifiStatus"></div>
-</div>
-
-<h2>Live-Log</h2>
-<pre id="log">Lade Log...</pre>
-
-<script>
-    function updateLog() {
-        fetch('/log')
-            .then(response => response.json())
-            .then(data => {
-                const logElement = document.getElementById("log");
-                logElement.textContent = data.log;
-                logElement.scrollTop = logElement.scrollHeight;
-            });
-    }
-
-    function updateCurrentWifi() {
-        fetch('/wifi/current')
-            .then(response => response.json())
-            .then(data => {
-                const currentElement = document.getElementById("currentWifi");
-                if (data.current) {
-                    currentElement.textContent = data.current;
-                    currentElement.className = "current-wifi";
-                } else {
-                    currentElement.textContent = "Nicht verbunden";
-                    currentElement.className = "current-wifi error";
-                }
-            })
-            .catch(error => {
-                document.getElementById("currentWifi").textContent = "Fehler beim Laden";
-                document.getElementById("currentWifi").className = "current-wifi error";
-            });
-    }
-
-    function scanWifi() {
-        const statusElement = document.getElementById("wifiStatus");
-        const selectElement = document.getElementById("wifiSelect");
-        
-        statusElement.innerHTML = '<span class="loading">Scanne WiFi-Netzwerke...</span>';
-        
-        // Select zurücksetzen
-        selectElement.innerHTML = '<option value="">Scanne...</option>';
-        
-        fetch('/wifi/scan')
-            .then(response => response.json())
-            .then(data => {
-                selectElement.innerHTML = '<option value="">Netzwerk wählen...</option>';
-                
-                if (data.networks && data.networks.length > 0) {
-                    data.networks.forEach(network => {
-                        const option = document.createElement('option');
-                        option.value = network.ssid;
-                        option.dataset.encrypted = network.encrypted;
-                        
-                        let displayText = network.ssid;
-                        if (network.quality !== undefined) {
-                            displayText += ` (${network.quality}%)`;
-                        }
-                        if (network.encrypted) {
-                            displayText += ' 🔒';
-                        }
-                        
-                        option.textContent = displayText;
-                        selectElement.appendChild(option);
-                    });
+            <!-- WiFi Configuration Card -->
+            <div class="card collapsed">
+                <h2 class="card-title collapsible collapsed" onclick="toggleCard(this)">WiFi Konfiguration</h2>
+                <div class="card-content collapsed">
+                    <div class="wifi-status">
+                        <div id="wifiIndicator" class="wifi-indicator"></div>
+                        <div>
+                            <strong>Aktuelles Netzwerk:</strong><br>
+                            <span id="currentWifi" class="loading">Wird geladen...</span>
+                        </div>
+                    </div>
                     
-                    statusElement.innerHTML = `<span class="success">${data.networks.length} Netzwerke gefunden</span>`;
+                    <div class="wifi-form">
+                        <div class="form-group">
+                            <label for="wifiSelect">WiFi-Netzwerk</label>
+                            <select id="wifiSelect" onchange="onWifiSelection()">
+                                <option value="">Netzwerk wählen...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="wifiPassword">Passwort</label>
+                            <input type="password" id="wifiPassword" placeholder="WiFi-Passwort">
+                        </div>
+                        
+                        <div class="wifi-buttons">
+                            <button onclick="configureWifi()" class="btn-primary">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.07 2.93 1 9z"/>
+                                    <path d="M5 13l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.86 9.14 5 13z"/>
+                                    <path d="M9 17l2 2c.87-.87 2.13-.87 3 0l2-2C14.24 15.24 9.76 15.24 9 17z"/>
+                                </svg>
+                                Verbinden
+                            </button>
+                            
+                            <button onclick="scanWifi()" class="btn-secondary">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                                </svg>
+                                Scannen
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="wifiStatus"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Terminal Card -->
+        <div class="card log-container">
+            <h2 class="card-title">Live-Log</h2>
+            <div class="log-terminal" id="log">Lade Log...</div>
+        </div>
+    </div>
+
+    <script>
+        function updateLog() {
+            fetch('/log')
+                .then(response => response.json())
+                .then(data => {
+                    const logElement = document.getElementById("log");
+                    // Zeilenwechsel beibehalten und richtig darstellen
+                    logElement.innerHTML = data.log.replace(/\n/g, '<br>');
+                    logElement.scrollTop = logElement.scrollHeight;
+                });
+        }
+
+        function updateCurrentWifi() {
+            fetch('/wifi/current')
+                .then(response => response.json())
+                .then(data => {
+                    const currentElement = document.getElementById("currentWifi");
+                    const indicatorElement = document.getElementById("wifiIndicator");
+                    
+                    if (data.current) {
+                        currentElement.textContent = data.current;
+                        currentElement.className = "";
+                        indicatorElement.className = "wifi-indicator";
+                    } else {
+                        currentElement.textContent = "Nicht verbunden";
+                        currentElement.className = "";
+                        indicatorElement.className = "wifi-indicator error";
+                    }
+                    
+                    // Header WiFi Status auch aktualisieren
+                    updateHeaderWifiStatus();
+                })
+                .catch(error => {
+                    document.getElementById("currentWifi").textContent = "Fehler beim Laden";
+                    document.getElementById("wifiIndicator").className = "wifi-indicator error";
+                    updateHeaderWifiStatus();
+                });
+        }
+
+        function scanWifi() {
+            const statusElement = document.getElementById("wifiStatus");
+            const selectElement = document.getElementById("wifiSelect");
+            
+            statusElement.innerHTML = '<div class="status-message loading"><div class="loading-spinner"></div> Scanne WiFi-Netzwerke...</div>';
+            
+            // Select zurücksetzen
+            selectElement.innerHTML = '<option value="">Scanne...</option>';
+            
+            fetch('/wifi/scan')
+                .then(response => response.json())
+                .then(data => {
+                    selectElement.innerHTML = '<option value="">Netzwerk wählen...</option>';
+                    
+                    if (data.networks && data.networks.length > 0) {
+                        data.networks.forEach(network => {
+                            const option = document.createElement('option');
+                            option.value = network.ssid;
+                            option.dataset.encrypted = network.encrypted;
+                            
+                            let displayText = network.ssid;
+                            if (network.quality !== undefined) {
+                                displayText += ` (${network.quality}%)`;
+                            }
+                            if (network.encrypted) {
+                                displayText += ' 🔒';
+                            }
+                            
+                            option.textContent = displayText;
+                            selectElement.appendChild(option);
+                        });
+                        
+                        statusElement.innerHTML = `<div class="status-message success">${data.networks.length} Netzwerke gefunden</div>`;
+                    } else {
+                        statusElement.innerHTML = '<div class="status-message error">Keine Netzwerke gefunden</div>';
+                    }
+                    
+                    // Aktuelles Netzwerk aktualisieren
+                    updateCurrentWifi();
+                })
+                .catch(error => {
+                    statusElement.innerHTML = '<div class="status-message error">Fehler beim Scannen der Netzwerke</div>';
+                    selectElement.innerHTML = '<option value="">Fehler beim Scannen</option>';
+                });
+        }
+
+        function configureWifi() {
+            const ssid = document.getElementById("wifiSelect").value;
+            const password = document.getElementById("wifiPassword").value;
+            const statusElement = document.getElementById("wifiStatus");
+            
+            if (!ssid) {
+                statusElement.innerHTML = '<div class="status-message error">Bitte wählen Sie ein Netzwerk aus</div>';
+                return;
+            }
+            
+            statusElement.innerHTML = '<div class="status-message loading"><div class="loading-spinner"></div> Konfiguriere WiFi...</div>';
+            
+            fetch('/wifi/configure', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ssid: ssid,
+                    password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusElement.innerHTML = `<div class="status-message success">${data.message}</div>`;
+                    // Passwort-Feld leeren
+                    document.getElementById("wifiPassword").value = '';
+                    // Nach kurzer Zeit aktuelles Netzwerk neu laden
+                    setTimeout(updateCurrentWifi, 3000);
                 } else {
-                    statusElement.innerHTML = '<span class="error">Keine Netzwerke gefunden</span>';
+                    statusElement.innerHTML = `<div class="status-message error">${data.message}</div>`;
                 }
-                
-                // Aktuelles Netzwerk aktualisieren
-                updateCurrentWifi();
             })
             .catch(error => {
-                statusElement.innerHTML = '<span class="error">Fehler beim Scannen der Netzwerke</span>';
-                selectElement.innerHTML = '<option value="">Fehler beim Scannen</option>';
+                statusElement.innerHTML = '<div class="status-message error">Fehler bei der WiFi-Konfiguration</div>';
             });
-    }
-
-    function configureWifi() {
-        const ssid = document.getElementById("wifiSelect").value;
-        const password = document.getElementById("wifiPassword").value;
-        const statusElement = document.getElementById("wifiStatus");
-        
-        if (!ssid) {
-            statusElement.innerHTML = '<span class="error">Bitte wählen Sie ein Netzwerk aus</span>';
-            return;
         }
-        
-        statusElement.innerHTML = '<span class="loading">Konfiguriere WiFi...</span>';
-        
-        fetch('/wifi/configure', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                ssid: ssid,
-                password: password
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                statusElement.innerHTML = `<span class="success">${data.message}</span>`;
-                // Passwort-Feld leeren
-                document.getElementById("wifiPassword").value = '';
-                // Nach kurzer Zeit aktuelles Netzwerk neu laden
-                setTimeout(updateCurrentWifi, 3000);
+
+        function onWifiSelection() {
+            const selectElement = document.getElementById("wifiSelect");
+            const passwordElement = document.getElementById("wifiPassword");
+            const selectedOption = selectElement.options[selectElement.selectedIndex];
+            
+            if (selectedOption && selectedOption.dataset.encrypted === 'true') {
+                passwordElement.focus();
+                passwordElement.placeholder = "Passwort erforderlich";
             } else {
-                statusElement.innerHTML = `<span class="error">${data.message}</span>`;
+                passwordElement.placeholder = "WiFi-Passwort";
             }
-        })
-        .catch(error => {
-            statusElement.innerHTML = '<span class="error">Fehler bei der WiFi-Konfiguration</span>';
-        });
-    }
-
-    function onWifiSelection() {
-        const selectElement = document.getElementById("wifiSelect");
-        const passwordElement = document.getElementById("wifiPassword");
-        const selectedOption = selectElement.options[selectElement.selectedIndex];
-        
-        if (selectedOption && selectedOption.dataset.encrypted === 'true') {
-            passwordElement.focus();
-            passwordElement.placeholder = "Passwort erforderlich";
-        } else {
-            passwordElement.placeholder = "WiFi-Passwort";
         }
-    }
 
-    // Initialisierung beim Laden der Seite
-    updateLog();
-    updateCurrentWifi();
-    scanWifi();
-    
-    // Regelmäßige Updates
-    setInterval(updateLog, 5000);
-    setInterval(updateCurrentWifi, 30000); // Alle 30 Sekunden aktuelles WiFi prüfen
-</script>
+        function toggleCard(titleElement) {
+            const cardContent = titleElement.nextElementSibling;
+            const card = titleElement.parentElement;
+            const isCollapsed = titleElement.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // Expand
+                titleElement.classList.remove('collapsed');
+                cardContent.classList.remove('collapsed');
+                card.classList.remove('collapsed');
+            } else {
+                // Collapse
+                titleElement.classList.add('collapsed');
+                cardContent.classList.add('collapsed');
+                card.classList.add('collapsed');
+            }
+        }
+
+        function updateHeaderWifiStatus() {
+            fetch('/wifi/current')
+                .then(response => response.json())
+                .then(data => {
+                    const statusBadge = document.getElementById("wifiStatusBadge");
+                    const statusText = document.getElementById("wifiStatusText");
+                    
+                    if (data.current) {
+                        statusText.textContent = `WiFi: ${data.current}`;
+                        statusBadge.className = "wifi-status-badge";
+                    } else {
+                        statusText.textContent = "WiFi: Nicht verbunden";
+                        statusBadge.className = "wifi-status-badge error";
+                    }
+                })
+                .catch(error => {
+                    document.getElementById("wifiStatusText").textContent = "WiFi: Fehler";
+                    document.getElementById("wifiStatusBadge").className = "wifi-status-badge error";
+                });
+        }
+
+        // Initialisierung beim Laden der Seite
+        document.addEventListener('DOMContentLoaded', function() {
+            updateLog();
+            updateCurrentWifi();
+            updateHeaderWifiStatus();
+            scanWifi();
+            
+            // Regelmäßige Updates
+            setInterval(updateLog, 5000);
+            setInterval(updateCurrentWifi, 30000); // Alle 30 Sekunden aktuelles WiFi prüfen
+        });
+    </script>
 </body>
 </html>
