@@ -98,6 +98,31 @@
             animation: pulse 2s infinite;
         }
 
+        .files-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+            border-radius: 50px;
+            font-weight: 600;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .files-status-badge.empty {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .files-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -403,12 +428,15 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Photo Printer Sync</h1>
             <div class="status-row">
                 <div class="status-badge">Status: {{ status }}</div>
                 <div id="wifiStatusBadge" class="wifi-status-badge">
                     <div class="wifi-status-indicator"></div>
                     <span id="wifiStatusText">WiFi: Wird geladen...</span>
+                </div>
+                <div id="filesStatusBadge" class="files-status-badge">
+                    <div class="files-status-indicator"></div>
+                    <span id="filesStatusText">Dateien: Wird geladen...</span>
                 </div>
             </div>
         </div>
@@ -448,6 +476,13 @@
                                 Cloud bereinigen
                             </button>
                         </form>
+                        <button onclick="clearInProgress()" class="btn-secondary">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M3 6h18l-1.5 12h-15L3 6z"/>
+                                <path d="M14 11v-1a2 2 0 00-4 0v1m0 0H6m4 0h4"/>
+                            </svg>
+                            In-Progress löschen
+                        </button>
                     </div>
                 </div>
             </div>
@@ -684,16 +719,62 @@
                 });
         }
 
+        function updateFilesStatus() {
+            fetch('/files/count')
+                .then(response => response.json())
+                .then(data => {
+                    const statusBadge = document.getElementById("filesStatusBadge");
+                    const statusText = document.getElementById("filesStatusText");
+                    
+                    const count = data.count || 0;
+                    statusText.textContent = `Dateien: ${count}`;
+                    
+                    if (count === 0) {
+                        statusBadge.className = "files-status-badge empty";
+                    } else {
+                        statusBadge.className = "files-status-badge";
+                    }
+                })
+                .catch(error => {
+                    document.getElementById("filesStatusText").textContent = "Dateien: Fehler";
+                    document.getElementById("filesStatusBadge").className = "files-status-badge";
+                });
+        }
+
+        function clearInProgress() {
+            if (!confirm("Sind Sie sicher, dass Sie alle Dateien im in_progress Ordner löschen möchten?")) {
+                return;
+            }
+            
+            fetch('/files/clear', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`${data.deleted_count} Dateien wurden gelöscht.`);
+                    updateFilesStatus(); // Status aktualisieren
+                } else {
+                    alert(`Fehler: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                alert('Fehler beim Löschen der Dateien');
+            });
+        }
+
         // Initialisierung beim Laden der Seite
         document.addEventListener('DOMContentLoaded', function() {
             updateLog();
             updateCurrentWifi();
             updateHeaderWifiStatus();
+            updateFilesStatus();
             scanWifi();
             
             // Regelmäßige Updates
             setInterval(updateLog, 5000);
             setInterval(updateCurrentWifi, 30000); // Alle 30 Sekunden aktuelles WiFi prüfen
+            setInterval(updateFilesStatus, 10000); // Alle 10 Sekunden Dateianzahl prüfen
         });
     </script>
 </body>

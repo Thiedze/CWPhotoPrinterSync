@@ -55,7 +55,6 @@ def wifi_scan():
 
 @app.route("/wifi/configure", methods=["POST"])
 def wifi_configure():
-    """Konfiguriert WiFi mit ausgewähltem Netzwerk und Passwort"""
     data = request.get_json()
     
     if not data or 'ssid' not in data:
@@ -73,9 +72,39 @@ def wifi_configure():
 
 @app.route("/wifi/current")
 def wifi_current():
-    """Gibt das aktuell verbundene WiFi-Netzwerk zurück"""
     current_network = wifi_service.get_current_network()
     return jsonify(current=current_network)
+
+@app.route("/files/count")
+def files_count():
+    try:
+        in_progress_path = "in_progress"
+        if os.path.exists(in_progress_path):
+            files = os.listdir(in_progress_path)
+            file_count = len([file for file in files if os.path.isfile(os.path.join(in_progress_path, file))])
+            return jsonify(count=file_count)
+        else:
+            return jsonify(count=0)
+    except Exception as e:
+        return jsonify(count=0, error=str(e))
+
+@app.route("/files/clear", methods=["POST"])
+def files_clear():
+    try:
+        in_progress_path = "in_progress"
+        deleted_count = 0
+        
+        if os.path.exists(in_progress_path):
+            files = os.listdir(in_progress_path)
+            for file in files:
+                file_path = os.path.join(in_progress_path, file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                    deleted_count += 1
+        
+        return jsonify(success=True, deleted_count=deleted_count, message=f"{deleted_count} Dateien wurden gelöscht")
+    except Exception as e:
+        return jsonify(success=False, message=f"Fehler beim Löschen: {str(e)}")
 
 
 if __name__ == "__main__":
