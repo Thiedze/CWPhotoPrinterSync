@@ -176,15 +176,45 @@ class WiFiService:
     @staticmethod
     def get_current_ip():
         try:
+            # Methode 1: hostname -I (Linux)
             try:
-                StdOutService.print(f"IP-Adresse mit 'hostname' ermitteln")
+                print(f"IP-Adresse mit 'hostname -I' ermitteln")
                 result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
                 if result.returncode == 0:
                     ips = result.stdout.strip().split()
                     for ip in ips:
-                        if not ip.startswith('127.'):
-                            StdOutService.print(f"Linux IP gefunden mit hostname -I: {ip}")
+                        if not ip.startswith('127.') and not ip.startswith('169.254.'):  # Keine localhost oder link-local
+                            print(f"Linux IP gefunden mit hostname -I: {ip}")
                             return ip
+            except:
+                pass
+            
+            # Methode 2: ip route (Linux)
+            try:
+                StdOutService.print(f"IP-Adresse mit 'ip route' ermitteln")
+                result = subprocess.run(['ip', 'route', 'get', '8.8.8.8'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    import re
+                    match = re.search(r'src (\d+\.\d+\.\d+\.\d+)', result.stdout)
+                    if match:
+                        ip = match.group(1)
+                        StdOutService.print(f"Linux IP gefunden mit ip route: {ip}")
+                        return ip
+            except:
+                pass
+            
+            # Methode 3: nmcli (NetworkManager)
+            try:
+                StdOutService.print(f"IP-Adresse mit 'nmcli' ermitteln")
+                result = subprocess.run(['nmcli', '-t', '-f', 'IP4.ADDRESS', 'dev', 'show'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    lines = result.stdout.strip().split('\n')
+                    for line in lines:
+                        if line.startswith('IP4.ADDRESS[1]:'):
+                            ip = line.split(':')[1].split('/')[0]
+                            if not ip.startswith('127.') and not ip.startswith('169.254.'):
+                                StdOutService.print(f"Linux IP gefunden mit nmcli: {ip}")
+                                return ip
             except:
                 pass
             

@@ -287,7 +287,8 @@ def get_log():
 def wifi_scan():
     networks = wifi_service.get_available_networks()
     current_network = wifi_service.get_current_network()
-    return jsonify(networks=networks, current=current_network)
+    current_ip = wifi_service.get_current_ip()
+    return jsonify(networks=networks, current=current_network, ip=current_ip)
 
 @app.route("/wifi/configure", methods=["POST"])
 def wifi_configure():
@@ -309,7 +310,8 @@ def wifi_configure():
 @app.route("/wifi/current")
 def wifi_current():
     current_network = wifi_service.get_current_network()
-    return jsonify(current=current_network)
+    current_ip = wifi_service.get_current_ip()
+    return jsonify(current=current_network, ip=current_ip)
 
 @app.route("/files/count")
 def files_count():
