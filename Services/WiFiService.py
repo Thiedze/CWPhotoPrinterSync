@@ -1,4 +1,3 @@
-import os
 import subprocess
 
 from Services.StdOutService import StdOutService
@@ -53,8 +52,8 @@ class WiFiService:
     @staticmethod
     def update_wpa_supplicant(ssid, password):
         try:
-            result = subprocess.run(['sudo', 'nmcli', 'device', 'wifi', 'connect', ssid, 'password', password], capture_output=True,
-                                    text=True)
+            result = subprocess.run(['sudo', 'nmcli', 'device', 'wifi', 'connect', ssid, 'password', password],
+                                    capture_output=True, text=True)
 
             if result.returncode == 0:
                 StdOutService.print("WiFi aktualisiert")
@@ -119,12 +118,10 @@ class WiFiService:
         try:
             import re
             import platform
-            
-            system = platform.system().lower()
-            print(f"Erkanntes System für Netzwerk: {system}")
 
             try:
-                result = subprocess.run(['nmcli', '-t', '-f', 'ACTIVE,SSID', 'dev', 'wifi'], capture_output=True, text=True)
+                result = subprocess.run(['nmcli', '-t', '-f', 'ACTIVE,SSID', 'dev', 'wifi'], capture_output=True,
+                                        text=True)
                 if result.returncode == 0:
                     lines = result.stdout.strip().split('\n')
                     for line in lines:
@@ -176,48 +173,17 @@ class WiFiService:
     @staticmethod
     def get_current_ip():
         try:
-            # Methode 1: hostname -I (Linux)
             try:
-                print(f"IP-Adresse mit 'hostname -I' ermitteln")
-                result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
-                if result.returncode == 0:
-                    ips = result.stdout.strip().split()
-                    for ip in ips:
-                        if not ip.startswith('127.') and not ip.startswith('169.254.'):  # Keine localhost oder link-local
-                            print(f"Linux IP gefunden mit hostname -I: {ip}")
-                            return ip
+                print(f"IP-Adresse mit 'nmcli' ermitteln")
+                result = subprocess.run(["nmcli", "-g", "IP4.ADDRESS", "device", "show", "wlan0"], capture_output=True,
+                                        text=True, check=True)
+                ip_with_cidr = result.stdout.strip()
+                ip = ip_with_cidr.split('/')[0] if '/' in ip_with_cidr else ip_with_cidr
+                print(f"Linux IP gefunden mit hostname -I: {result}")
+                return ip
             except:
                 pass
-            
-            # Methode 2: ip route (Linux)
-            try:
-                StdOutService.print(f"IP-Adresse mit 'ip route' ermitteln")
-                result = subprocess.run(['ip', 'route', 'get', '8.8.8.8'], capture_output=True, text=True)
-                if result.returncode == 0:
-                    import re
-                    match = re.search(r'src (\d+\.\d+\.\d+\.\d+)', result.stdout)
-                    if match:
-                        ip = match.group(1)
-                        StdOutService.print(f"Linux IP gefunden mit ip route: {ip}")
-                        return ip
-            except:
-                pass
-            
-            # Methode 3: nmcli (NetworkManager)
-            try:
-                StdOutService.print(f"IP-Adresse mit 'nmcli' ermitteln")
-                result = subprocess.run(['nmcli', '-t', '-f', 'IP4.ADDRESS', 'dev', 'show'], capture_output=True, text=True)
-                if result.returncode == 0:
-                    lines = result.stdout.strip().split('\n')
-                    for line in lines:
-                        if line.startswith('IP4.ADDRESS[1]:'):
-                            ip = line.split(':')[1].split('/')[0]
-                            if not ip.startswith('127.') and not ip.startswith('169.254.'):
-                                StdOutService.print(f"Linux IP gefunden mit nmcli: {ip}")
-                                return ip
-            except:
-                pass
-            
+
             StdOutService.print("Keine IP-Adresse gefunden")
             return None
 

@@ -69,6 +69,19 @@ class NextCloudService:
                 image = image.rotate(270, expand=True)
             image.save(file_path)
 
+    @staticmethod
+    def concatenate_images(folder, left_file, right_file):
+        left_image = Image.open(os.path.join(folder, left_file))
+        right_image = Image.open(os.path.join(folder, right_file))
+
+        concatenate_image = Image.new('RGB', (left_image.width + right_image.width, left_image.height))
+        concatenate_image.paste(left_image, (0, 0))
+        concatenate_image.paste(right_image, (left_image.width, 0))
+        concatenate_image.save(os.path.join(folder, left_file + right_file))
+        concatenate_image.close()
+        return os.path.join(folder, left_file + right_file)
+
+
     def reset_in_progress(self, photos):
         for photo in photos:
             self.next_cloud_service.files.delete(photo.user_path)
