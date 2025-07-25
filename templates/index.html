@@ -299,6 +299,43 @@
             background: #dc2626;
         }
 
+        /* Deaktivierte Button-Styles */
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .btn-primary:disabled {
+            background: #9ca3af;
+            color: #6b7280;
+        }
+
+        .btn-danger:disabled {
+            background: #9ca3af;
+            color: #6b7280;
+        }
+
+        .btn-secondary:disabled {
+            background: #f3f4f6;
+            color: #9ca3af;
+            border-color: #e5e7eb;
+        }
+
+        /* Checkbox-Styles */
+        input[type="checkbox"] {
+            width: 1.25rem;
+            height: 1.25rem;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+        }
+
+        /* Checkbox-Label-Styles */
+        label input[type="checkbox"] + span {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
         .wifi-status {
             display: flex;
             align-items: center;
@@ -476,28 +513,38 @@
                 <h2 class="card-title collapsible collapsed" onclick="toggleCard(this)">Server Steuerung</h2>
                 <div class="card-content collapsed">
                     <div class="control-form">
-                        <form action="/start" method="get" style="display: contents;">
-                            <div class="form-group">
-                                <label for="interval">Scan-Interval (Sekunden)</label>
-                                <input value="60" type="number" id="interval" name="interval" required min="1">
-                            </div>
-                            <button type="submit" class="btn-primary">
-                                <svg class="icon" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z"/>
-                                </svg>
-                                Start
-                            </button>
-                        </form>
-                        <form action="/stop" method="get" style="display: contents;">
-                            <button type="submit" class="btn-danger">
-                                <svg class="icon" viewBox="0 0 24 24">
-                                    <rect x="6" y="6" width="12" height="12"/>
-                                </svg>
-                                Stop
-                            </button>
-                        </form>
-                        <form action="/next_cloud_clear" method="get" style="display: contents;">
-                            <button type="submit" class="btn-secondary">
+                        <div class="form-group" style="width: 100%; margin-bottom: 1rem;">
+                            <label for="interval">Scan-Interval (Sekunden)</label>
+                            <input value="60" type="number" id="interval" name="interval" required min="1" style="width: 100%;">
+                        </div>
+                        <div class="form-group" style="width: 100%; margin-bottom: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="autostartCheckbox" style="margin: 0;">
+                                <span>Autostart beim Systemstart aktivieren</span>
+                            </label>
+                        </div>
+                        <div style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 1rem;">
+                            <form action="/start" method="get" style="display: contents;">
+                                <button type="submit" id="startButton" class="btn-primary" onclick="this.form.interval.value = document.getElementById('interval').value; this.form.autostart.value = document.getElementById('autostartCheckbox').checked; setTimeout(updateServerStatus, 1000);">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z"/>
+                                    </svg>
+                                    Start
+                                </button>
+                                <input type="hidden" name="interval" id="hidden-interval">
+                                <input type="hidden" name="autostart" id="hidden-autostart">
+                            </form>
+                            <form action="/stop" method="get" style="display: contents;">
+                                <button type="submit" id="stopButton" class="btn-danger" onclick="setTimeout(updateServerStatus, 1000);">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <rect x="6" y="6" width="12" height="12"/>
+                                    </svg>
+                                    Stop
+                                </button>
+                            </form>
+                        </div>
+                        <form action="/next_cloud_clear" method="get" style="width: 100%; margin-bottom: 1rem;">
+                            <button type="submit" class="btn-secondary" style="width: 100%;">
                                 <svg class="icon" viewBox="0 0 24 24">
                                     <path d="M3 6h18l-1.5 12h-15L3 6z"/>
                                     <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -505,7 +552,7 @@
                                 Cloud bereinigen
                             </button>
                         </form>
-                        <button onclick="clearInProgress()" class="btn-secondary">
+                        <button onclick="clearInProgress()" class="btn-secondary" style="width: 100%;">
                             <svg class="icon" viewBox="0 0 24 24">
                                 <path d="M3 6h18l-1.5 12h-15L3 6z"/>
                                 <path d="M14 11v-1a2 2 0 00-4 0v1m0 0H6m4 0h4"/>
@@ -579,7 +626,7 @@
                             <input type="text" id="nextcloudUsername" placeholder="NextCloud Benutzername">
                         </div>
                         
-                        <div class="form-group">
+                        <div class="form-group" style="grid-column: 1 / -1;">
                             <label for="nextcloudPassword">Passwort</label>
                             <input type="password" id="nextcloudPassword" placeholder="NextCloud Passwort">
                         </div>
@@ -618,6 +665,31 @@
     </div>
 
     <script>
+        function updateServerStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const startButton = document.getElementById('startButton');
+                    const stopButton = document.getElementById('stopButton');
+                    
+                    if (data.running) {
+                        // Server läuft: Start deaktivieren, Stop aktivieren
+                        startButton.disabled = true;
+                        stopButton.disabled = false;
+                    } else {
+                        // Server gestoppt: Start aktivieren, Stop deaktivieren
+                        startButton.disabled = false;
+                        stopButton.disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Fehler beim Abrufen des Server-Status:', error);
+                    // Bei Fehler beide Buttons aktivieren
+                    document.getElementById('startButton').disabled = false;
+                    document.getElementById('stopButton').disabled = false;
+                });
+        }
+
         function updateLog() {
             fetch('/log')
                 .then(response => response.json())
@@ -637,7 +709,11 @@
                     const indicatorElement = document.getElementById("wifiIndicator");
                     
                     if (data.current) {
-                        currentElement.textContent = data.current;
+                        let displayText = data.current;
+                        if (data.ip) {
+                            displayText += ` (${data.ip})`;
+                        }
+                        currentElement.textContent = displayText;
                         currentElement.className = "";
                         indicatorElement.className = "wifi-indicator";
                     } else {
@@ -780,7 +856,11 @@
                     const statusText = document.getElementById("wifiStatusText");
                     
                     if (data.current) {
-                        statusText.textContent = `WiFi: ${data.current}`;
+                        let displayText = `WiFi: ${data.current}`;
+                        if (data.ip) {
+                            displayText += ` (${data.ip})`;
+                        }
+                        statusText.textContent = displayText;
                         statusBadge.className = "wifi-status-badge";
                     } else {
                         statusText.textContent = "WiFi: Nicht verbunden";
@@ -879,10 +959,28 @@
                 });
         }
 
+        function loadServerConfig() {
+            fetch('/server/config')
+                .then(response => response.json())
+                .then(data => {
+                    // Intervall laden
+                    if (data.interval) {
+                        document.getElementById("interval").value = data.interval;
+                    }
+                    
+                    // Autostart-Status laden
+                    document.getElementById("autostartCheckbox").checked = data.autostart || false;
+                })
+                .catch(error => {
+                    console.error('Fehler beim Laden der Server-Konfiguration:', error);
+                });
+        }
+
         function saveNextCloudConfig() {
             const url = document.getElementById("nextcloudUrl").value;
             const username = document.getElementById("nextcloudUsername").value;
             const password = document.getElementById("nextcloudPassword").value;
+            const interval = parseInt(document.getElementById("interval").value) || 60;
             const statusElement = document.getElementById("nextcloudStatus");
             
             if (!url || !username) {
@@ -900,7 +998,8 @@
                 body: JSON.stringify({
                     url: url,
                     username: username,
-                    password: password
+                    password: password,
+                    interval: interval
                 })
             })
             .then(response => response.json())
@@ -927,6 +1026,9 @@
             updateHeaderWifiStatus();
             updateFilesStatus();
             updateNextCloudStatus();
+            updateServerStatus(); // Server-Status prüfen
+            loadServerConfig(); // Lädt Server-Konfiguration (Intervall und Autostart)
+            loadNextCloudConfig(); // Lädt NextCloud-Konfiguration
             scanWifi();
             
             // Regelmäßige Updates
@@ -934,6 +1036,7 @@
             setInterval(updateCurrentWifi, 30000); // Alle 30 Sekunden aktuelles WiFi prüfen
             setInterval(updateFilesStatus, 10000); // Alle 10 Sekunden Dateianzahl prüfen
             setInterval(updateNextCloudStatus, 60000); // Alle 60 Sekunden NextCloud Status prüfen
+            setInterval(updateServerStatus, 3000); // Alle 3 Sekunden Server-Status prüfen
         });
     </script>
 </body>

@@ -117,18 +117,82 @@ class WiFiService:
     @staticmethod
     def get_current_network():
         try:
-            result = subprocess.run(['iwconfig', 'wlan0'], capture_output=True, text=True)
+            import re
+            import platform
+            
+            system = platform.system().lower()
+            print(f"Erkanntes System für Netzwerk: {system}")
 
-            if result.returncode == 0:
-                output = result.stdout
-                if 'ESSID:' in output:
-                    ssid = output.split('ESSID:')[1].split(' ')[0].strip().strip('"')
-                    if ssid and ssid != 'off/any':
-                        return ssid
+            try:
+                result = subprocess.run(['nmcli', '-t', '-f', 'ACTIVE,SSID', 'dev', 'wifi'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    lines = result.stdout.strip().split('\n')
+                    for line in lines:
+                        if line.startswith('yes:'):
+                            ssid = line.split(':', 1)[1]
+                            if ssid and ssid != '--':
+                                print(f"Linux aktives WLAN gefunden (nmcli): {ssid}")
+                                return ssid
+            except:
+                pass
+
+            wireless_interfaces = ['wlan0', 'wlp2s0', 'wlp3s0', 'wlo1', 'wlx', 'wifi0']
+
+            for interface in wireless_interfaces:
+                try:
+                    result = subprocess.run(['iwconfig', interface], capture_output=True, text=True)
+                    if result.returncode == 0:
+                        output = result.stdout
+                        if 'ESSID:' in output:
+                            ssid = output.split('ESSID:')[1].split(' ')[0].strip().strip('"')
+                            if ssid and ssid != 'off/any':
+                                StdOutService.print(f"Linux WLAN gefunden auf Interface {interface}: {ssid}")
+                                return ssid
+                except:
+                    continue
+
+            try:
+                result = subprocess.run(['iwconfig'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    interface_blocks = result.stdout.split('\n\n')
+                    for block in interface_blocks:
+                        if 'ESSID:' in block and 'IEEE 802.11' in block:
+                            ssid_match = re.search(r'ESSID:"([^"]*)"', block)
+                            if ssid_match:
+                                ssid = ssid_match.group(1)
+                                if ssid and ssid != 'off/any':
+                                    StdOutService.print(f"Linux WLAN gefunden: {ssid}")
+                                    return ssid
+            except:
+                pass
+
+            StdOutService.print("Kein WLAN-Netzwerk gefunden")
             return None
 
         except Exception as e:
             StdOutService.print(f"Fehler beim Abrufen des aktuellen Netzwerks: {str(e)}")
+            return None
+
+    @staticmethod
+    def get_current_ip():
+        try:
+            try:
+                StdOutService.print(f"IP-Adresse mit 'hostname' ermitteln")
+                result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    ips = result.stdout.strip().split()
+                    for ip in ips:
+                        if not ip.startswith('127.'):
+                            StdOutService.print(f"Linux IP gefunden mit hostname -I: {ip}")
+                            return ip
+            except:
+                pass
+            
+            StdOutService.print("Keine IP-Adresse gefunden")
+            return None
+
+        except Exception as e:
+            StdOutService.print(f"Fehler beim Abrufen der IP-Adresse: {str(e)}")
             return None
 
     @staticmethod
